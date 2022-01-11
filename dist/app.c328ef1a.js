@@ -124,24 +124,37 @@ var content = document.createElement('div');
 var NEWS_URL = 'https://api.hnpwa.com/v0/news/1.json';
 var CONTENTS_URL = 'https://api.hnpwa.com/v0/item/@id.json';
 var store = {
-  currentPage: 1
+  currentPage: 1,
+  feeds: []
 };
 
 function getData(url) {
   ajax.open('GET', url, false);
   ajax.send();
   return JSON.parse(ajax.response);
+}
+
+function makeFeed(feeds) {
+  for (var i = 0; i < feeds.length; i++) {
+    feeds[i].read = false;
+  }
+
+  return feeds;
 } // Get data from hackernews site
 
 
 function newsFeed() {
-  var newsFeed = getData(NEWS_URL);
+  var newsFeed = store.feeds;
   var newsList = [];
   var template = "\n        <div class=\"bg-gray-600 min-h-screen\">\n            <div class=\"bg-white text-xl\">\n                <div class=\"mx-auto p-4\">\n                <div class=\"flex justify-between items-center py-6\">\n                    <div class=\"flex justify-start\">\n                        <h1 class=\"font-extrabold\">Hacker News</h1>\n                    </div>\n                    \n                    <div class=\"items-center justify-end\">\n                        <a href=\"#/page/{{__prev_page__}}\" class=\"text-gray-500\">Previous</a>\n                        <a href=\"#/page/{{__next_page__}}\" class=\"text-gray-500 ml-4\">Next</a>\n                    </div>\n                </div>\n                </div>\n                \n            </div>\n            <div class=\"p-4 text-2xl text-gray-700\">\n                    {{__news_feed__}}\n                </div>\n        </div>\n    ";
-  newsList.push('<ul>');
+
+  if (newsFeed.length === 0) {
+    newsFeed = store.feeds = makeFeed(getData(NEWS_URL));
+    console.log(store);
+  }
 
   for (var i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
-    newsList.push("\n        <div class=\"p-6 bg-white mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100\">\n            <div class=\"flex\">\n                <div class=\"flex-auto\">\n                    <a href=\"#/show/".concat(newsFeed[i].id, "\">").concat(newsFeed[i].title, "</a>\n                </div>\n                <div class=\"text-center text-sm\">\n                    <div class=\"w-10 text-white bg-green-300 rounded-lg px-0 py-2\">\n                        ").concat(newsFeed[i].comments_count, "\n                    </div>\n                </div>\n            </div>\n\n            <div class=\"flex mt-3\">\n                <div class=\"grid grid-cols-3 text-sm text-gray-500\">\n                    <div><i class=\"fas fa-user mr-1\"></i>").concat(newsFeed[i].user, "</div>\n                    <div><i class=\"fas fa-heart mr-1\"></i>").concat(newsFeed[i].points, "</div>\n                    <div><i class=\"fas fa-clock mr-1\"></i>").concat(newsFeed[i].time_ago, "</div>\n                </div>\n            </div>\n        </div>\n     \n        "));
+    newsList.push("\n        <div class=\"p-6 ".concat(newsFeed[i].read ? 'bg-red-500' : 'bg-white', " mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100\">\n            <div class=\"flex\">\n                <div class=\"flex-auto\">\n                    <a href=\"#/show/").concat(newsFeed[i].id, "\">").concat(newsFeed[i].title, "</a>\n                </div>\n                <div class=\"text-center text-sm\">\n                    <div class=\"w-10 text-white bg-green-300 rounded-lg px-0 py-2\">\n                        ").concat(newsFeed[i].comments_count, "\n                    </div>\n                </div>\n            </div>\n\n            <div class=\"flex mt-3\">\n                <div class=\"grid grid-cols-3 text-sm text-gray-500\">\n                    <div><i class=\"fas fa-user mr-1\"></i>").concat(newsFeed[i].user, "</div>\n                    <div><i class=\"fas fa-heart mr-1\"></i>").concat(newsFeed[i].points, "</div>\n                    <div><i class=\"fas fa-clock mr-1\"></i>").concat(newsFeed[i].time_ago, "</div>\n                </div>\n            </div>\n        </div>\n     \n        "));
   }
 
   template = template.replace('{{__news_feed__}}', newsList.join(''));
@@ -154,17 +167,23 @@ function newsDetail() {
   var id = location.hash.substr(7);
   var newsContent = getData(CONTENTS_URL.replace('@id', id));
   var template = "\n    <div class=\"bg-gray-600 min-h-screen pb-8\">\n        <div class=\"bg-white text-xl\">\n            <div class=\"mx-auto px-4\">\n                <div class=\"flex justify-between items-center py-6\">\n                    <div class=\"flex justify-start\">\n                        <h1 class=\"font-extrabold\">Hacker News</h1>\n                    </div>\n                    <div class=\"items-center justify-end\">\n                        <a href=\"#/page/".concat(store.currentPage, "\" class=\"text-gray-500\">\n                            <i class=\"fa fa-times\"></i>\n                        </a>\n                    </div>\n                </div>\n            </div>\n        </div>\n\n        <div class=\"h-full border rounded-xl bg-white m-6 p-4\">\n            <h2>").concat(newsContent.title, "</h2>\n            <div class=\"text-gray-400 h-20\">\n                ").concat(newsContent.content, "\n            </div>\n\n            {{__comments__}}\n        </div>\n    <div>\n    ");
-  console.log(newsContent.comments);
+
+  for (var i = 0; i < store.feeds.length; i++) {
+    if (store.feeds[i].id === Number(id)) {
+      store.feeds[i].read = true;
+      break;
+    }
+  }
 
   function makeComment(comments) {
     var called = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
     var commentString = [];
 
-    for (var i = 0; i < comments.length; i++) {
-      commentString.push("\n                <div style=\"padding-left: ".concat(called * 40, "px;\" class=\"mt-4\">\n                    <div class=\"text-gray-400\">\n                        <i class=\"fa fa-sort-up mr-2\"></i>\n                        <strong>").concat(comments[i].user, "</strong> ").concat(comments[i].time_ago, "\n                    </div>\n                    <p class=\"text-gray-700\"").concat(comments[i].content, "</p>\n                </div>\n            "));
+    for (var _i = 0; _i < comments.length; _i++) {
+      commentString.push("\n                <div style=\"padding-left: ".concat(called * 40, "px;\" class=\"mt-4\">\n                    <div class=\"text-gray-400\">\n                        <i class=\"fa fa-sort-up mr-2\"></i>\n                        <strong>").concat(comments[_i].user, "</strong> ").concat(comments[_i].time_ago, "\n                    </div>\n                    <p class=\"text-gray-700\"").concat(comments[_i].content, "</p>\n                </div>\n            "));
 
-      if (comments[i].comments.length > 0) {
-        commentString.push(makeComment(comments[i].comments, called + 1));
+      if (comments[_i].comments.length > 0) {
+        commentString.push(makeComment(comments[_i].comments, called + 1));
       }
     }
 
@@ -194,7 +213,7 @@ router(); // It's hard to proceed with DOM API.
 // Design
 // icon
 // Font
-},{}],"../../.nvm/versions/node/v14.15.1/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{}],"../../../../../usr/local/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -222,7 +241,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "50909" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "60302" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
@@ -398,5 +417,5 @@ function hmrAcceptRun(bundle, id) {
     return true;
   }
 }
-},{}]},{},["../../.nvm/versions/node/v14.15.1/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js","app.js"], null)
+},{}]},{},["../../../../../usr/local/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js","app.js"], null)
 //# sourceMappingURL=/app.c328ef1a.js.map

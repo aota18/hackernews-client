@@ -11,3 +11,16 @@
 - No Servers, using open RESTful API. (https://hackernews.api-docs.io/)
 - We use TailwindCSS as CSS Framework.
 - No asynchronous technique for now.
+
+
+---
+### How to run
+
+- Install ```parcel``` on your local
+```
+$ npm install -g parcel
+```
+- Then run:
+```
+$ parcel index.html
+```
